@@ -31,9 +31,20 @@
         </div>
 
         <div class="relative">
-            <input id="searchInput" type="text" placeholder="Search additional HVAC tasks..."
-                class="w-full py-3 pl-4 pr-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-700 cursor-pointer"
-                onclick="toggleDropdown()" oninput="filterDropdownTasks()" readonly>
+            <div class="flex gap-2">
+                <input id="searchInput" type="text" placeholder="Search additional HVAC tasks..."
+                    class="flex-1 py-3 pl-4 pr-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-700 cursor-pointer"
+                    onclick="toggleDropdown()" oninput="filterDropdownTasks()" readonly>
+
+                <button onclick="event.stopPropagation(); openTasksModal();"
+                    class="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-colors flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                    </svg>
+                    All Tasks
+                </button>
+            </div>
 
             <div id="tasksDropdown"
                 class="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20 hidden">
@@ -59,6 +70,58 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal for All Tasks -->
+    <div id="tasksModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800">All HVAC Tasks</h2>
+                <button onclick="closeTasksModal()" class="text-gray-500 hover:text-gray-700 p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Search -->
+            <div class="p-6 border-b border-gray-200">
+                <input id="modalSearchInput" type="text" placeholder="Search tasks in modal..."
+                    class="w-full py-3 px-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-700"
+                    oninput="filterModalTasks()">
+            </div>
+
+            <!-- Modal Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="modalTasksList" class="space-y-4">
+                    <!-- Tasks will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Modal Pagination -->
+            <div class="p-6 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-600">
+                        Showing <span id="modalShowingFrom">1</span> to <span id="modalShowingTo">10</span> of <span
+                            id="modalTotalTasks">0</span> tasks
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="modalPrevBtn" onclick="previousPage()"
+                            class="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Previous
+                        </button>
+                        <span id="modalPageInfo" class="px-3 py-2 text-sm text-gray-700">Page 1 of 1</span>
+                        <button id="modalNextBtn" onclick="nextPage()"
+                            class="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const taskCategories = {
             'preventive': {
@@ -159,6 +222,195 @@
 
         let selectedTasks = [];
         let collapsedCategories = {}; // Track collapsed state
+
+        // Modal pagination variables
+        let modalCurrentPage = 1;
+        let modalTasksPerPage = 10;
+        let modalFilteredTasks = [];
+
+        // Modal functions
+        function openTasksModal() {
+            console.log('Opening tasks modal...');
+            const modal = document.getElementById('tasksModal');
+            console.log('Modal element:', modal);
+            console.log('Modal classes before:', modal.className);
+
+            // Use both methods to ensure visibility
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+
+            console.log('Modal classes after:', modal.className);
+            console.log('Modal style display:', modal.style.display);
+
+            modalCurrentPage = 1;
+            modalFilteredTasks = [...tasks];
+            renderModalTasks();
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
+
+            // Force display after a small delay to ensure it's not overridden
+            setTimeout(() => {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                console.log('Final modal display:', modal.style.display);
+            }, 10);
+        }
+
+        function closeTasksModal() {
+            const modal = document.getElementById('tasksModal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            document.getElementById('modalSearchInput').value = '';
+            document.body.style.overflow = 'auto'; // Restore background scroll
+        }
+
+        function filterModalTasks() {
+            const query = document.getElementById('modalSearchInput').value.toLowerCase();
+
+            if (query.length === 0) {
+                modalFilteredTasks = [...tasks];
+            } else {
+                modalFilteredTasks = tasks.filter(t =>
+                    t.name.toLowerCase().includes(query) ||
+                    t.system.toLowerCase().includes(query) ||
+                    t.priority.toLowerCase().includes(query) ||
+                    t.categoryName.toLowerCase().includes(query)
+                );
+            }
+
+            modalCurrentPage = 1;
+            renderModalTasks();
+        }
+
+        function renderModalTasks() {
+            const startIndex = (modalCurrentPage - 1) * modalTasksPerPage;
+            const endIndex = startIndex + modalTasksPerPage;
+            const paginatedTasks = modalFilteredTasks.slice(startIndex, endIndex);
+
+            const modalTasksList = document.getElementById('modalTasksList');
+
+            if (paginatedTasks.length === 0) {
+                modalTasksList.innerHTML = '<div class="text-center text-gray-400 py-8">No tasks found</div>';
+                updateModalPagination();
+                return;
+            }
+
+            const groupedTasks = {};
+            paginatedTasks.forEach(task => {
+                if (!groupedTasks[task.type]) {
+                    groupedTasks[task.type] = [];
+                }
+                groupedTasks[task.type].push(task);
+            });
+
+            modalTasksList.innerHTML = Object.keys(groupedTasks).map(categoryKey => {
+                const category = taskCategories[categoryKey];
+                const categoryTasks = groupedTasks[categoryKey];
+
+                return `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-${category.color}-500 rounded-full mr-3"></div>
+                                <span class="font-semibold text-gray-700">${category.name}</span>
+                                <span class="ml-2 text-sm text-gray-500">(${categoryTasks.length} ${categoryTasks.length === 1 ? 'task' : 'tasks'})</span>
+                            </div>
+                        </div>
+                        <div class="divide-y divide-gray-200">
+                            ${categoryTasks.map(t => {
+                    const isSelected = selectedTasks.some(st => st.id === t.id);
+                    return `
+                                    <div class="px-4 py-4 hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-green-50' : ''}" onclick="selectTaskFromModal(${t.id})">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex-1">
+                                                <div class="font-medium text-gray-800">${t.name}</div>
+                                                <div class="text-sm text-gray-600 mt-1">
+                                                    <span class="inline-block bg-gray-100 px-2 py-1 rounded text-xs mr-2">${capitalize(t.system)}</span>
+                                                    <span class="inline-block bg-${getPriorityColor(t.priority)}-100 text-${getPriorityColor(t.priority)}-800 px-2 py-1 rounded text-xs">${capitalize(t.priority)}</span>
+                                                </div>
+                                            </div>
+                                            ${isSelected ? `
+                                                <div class="ml-4 text-green-600">
+                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                            ` : `
+                                                <div class="ml-4 text-gray-400">
+                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                                    </svg>
+                                                </div>
+                                            `}
+                                        </div>
+                                    </div>
+                                `;
+                }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateModalPagination();
+        }
+
+        function selectTaskFromModal(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            const isAlreadySelected = selectedTasks.some(t => t.id === taskId);
+
+            if (task) {
+                if (isAlreadySelected) {
+                    selectedTasks = selectedTasks.filter(t => t.id !== taskId);
+                } else {
+                    selectedTasks.push(task);
+                }
+
+                renderSelectedTasks();
+                renderModalTasks(); // Update modal display
+            }
+        }
+
+        function updateModalPagination() {
+            const totalTasks = modalFilteredTasks.length;
+            const totalPages = Math.ceil(totalTasks / modalTasksPerPage);
+            const startIndex = (modalCurrentPage - 1) * modalTasksPerPage + 1;
+            const endIndex = Math.min(modalCurrentPage * modalTasksPerPage, totalTasks);
+
+            document.getElementById('modalShowingFrom').textContent = totalTasks > 0 ? startIndex : 0;
+            document.getElementById('modalShowingTo').textContent = endIndex;
+            document.getElementById('modalTotalTasks').textContent = totalTasks;
+            document.getElementById('modalPageInfo').textContent = `Page ${modalCurrentPage} of ${totalPages}`;
+
+            const prevBtn = document.getElementById('modalPrevBtn');
+            const nextBtn = document.getElementById('modalNextBtn');
+
+            prevBtn.disabled = modalCurrentPage === 1;
+            nextBtn.disabled = modalCurrentPage === totalPages || totalPages === 0;
+        }
+
+        function previousPage() {
+            if (modalCurrentPage > 1) {
+                modalCurrentPage--;
+                renderModalTasks();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(modalFilteredTasks.length / modalTasksPerPage);
+            if (modalCurrentPage < totalPages) {
+                modalCurrentPage++;
+                renderModalTasks();
+            }
+        }
+
+        function getPriorityColor(priority) {
+            switch (priority) {
+                case 'critical': return 'red';
+                case 'high': return 'orange';
+                case 'medium': return 'yellow';
+                case 'low': return 'green';
+                default: return 'gray';
+            }
+        }
 
         function renderDropdownTasks(list) {
             const ul = document.getElementById('dropdownTaskList');
@@ -318,7 +570,9 @@
             if (!dropdown.classList.contains('hidden')) {
                 input.removeAttribute('readonly');
                 input.focus();
-                renderDropdownTasks(tasks);
+                // Don't show all tasks immediately, wait for user to type at least 3 characters
+                const ul = document.getElementById('dropdownTaskList');
+                ul.innerHTML = '<li class="px-4 py-3 text-gray-400 text-center">Type at least 3 characters to search...</li>';
             } else {
                 input.setAttribute('readonly', true);
                 input.value = '';
@@ -327,6 +581,14 @@
 
         function filterDropdownTasks() {
             const query = document.getElementById('searchInput').value.toLowerCase();
+
+            // Only filter if query has 3 or more characters, otherwise show message
+            if (query.length < 3) {
+                const ul = document.getElementById('dropdownTaskList');
+                ul.innerHTML = '<li class="px-4 py-3 text-gray-400 text-center">Type at least 3 characters to search...</li>';
+                return;
+            }
+
             const filtered = tasks.filter(t =>
                 t.name.toLowerCase().includes(query)
             );
@@ -348,11 +610,14 @@
 
                 renderSelectedTasks();
 
+                // Only re-render dropdown if search query has 3+ characters
                 const query = document.getElementById('searchInput').value.toLowerCase();
-                const filtered = tasks.filter(t =>
-                    t.name.toLowerCase().includes(query)
-                );
-                renderDropdownTasks(filtered);
+                if (query.length >= 3) {
+                    const filtered = tasks.filter(t =>
+                        t.name.toLowerCase().includes(query)
+                    );
+                    renderDropdownTasks(filtered);
+                }
             }
         }
 
@@ -363,10 +628,12 @@
             const dropdown = document.getElementById('tasksDropdown');
             if (!dropdown.classList.contains('hidden')) {
                 const query = document.getElementById('searchInput').value.toLowerCase();
-                const filtered = tasks.filter(t =>
-                    t.name.toLowerCase().includes(query)
-                );
-                renderDropdownTasks(filtered);
+                if (query.length >= 3) {
+                    const filtered = tasks.filter(t =>
+                        t.name.toLowerCase().includes(query)
+                    );
+                    renderDropdownTasks(filtered);
+                }
             }
         }
 
@@ -436,14 +703,16 @@
                 // Re-render selected tasks
                 renderSelectedTasks();
 
-                // Update dropdown if it's open
+                // Update dropdown only if it's open and has 3+ characters
                 const dropdown = document.getElementById('tasksDropdown');
                 if (!dropdown.classList.contains('hidden')) {
                     const query = document.getElementById('searchInput').value.toLowerCase();
-                    const filtered = tasks.filter(t =>
-                        t.name.toLowerCase().includes(query)
-                    );
-                    renderDropdownTasks(filtered);
+                    if (query.length >= 3) {
+                        const filtered = tasks.filter(t =>
+                            t.name.toLowerCase().includes(query)
+                        );
+                        renderDropdownTasks(filtered);
+                    }
                 }
             }
         }
@@ -461,6 +730,32 @@
                 dropdown.classList.add('hidden');
                 input.value = '';
                 input.setAttribute('readonly', true);
+            }
+        });
+
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('tasksModal');
+            const modalContent = modal.querySelector('.bg-white');
+            const allTasksButton = e.target.closest('button[onclick*="openTasksModal"]');
+
+            // Don't close if clicking the "All Tasks" button
+            if (allTasksButton) {
+                return;
+            }
+
+            if (modal && modal.style.display === 'flex' && !modalContent.contains(e.target)) {
+                closeTasksModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('tasksModal');
+                if (modal.style.display === 'flex') {
+                    closeTasksModal();
+                }
             }
         });
 
