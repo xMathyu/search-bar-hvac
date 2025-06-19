@@ -335,8 +335,17 @@
 
         function selectTask(taskId) {
             const task = tasks.find(t => t.id === taskId);
-            if (task && !selectedTasks.some(t => t.id === taskId)) {
-                selectedTasks.push(task);
+            const isAlreadySelected = selectedTasks.some(t => t.id === taskId);
+
+            if (task) {
+                if (isAlreadySelected) {
+                    // Deselect the task
+                    selectedTasks = selectedTasks.filter(t => t.id !== taskId);
+                } else {
+                    // Select the task
+                    selectedTasks.push(task);
+                }
+
                 renderSelectedTasks();
 
                 const query = document.getElementById('searchInput').value.toLowerCase();
