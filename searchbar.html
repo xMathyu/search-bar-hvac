@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVAC Task Searchbar + Filters</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+        <!-- HVAC Device Selector -->
+        <div class="mb-6">
+            <label for="hvacDevice" class="block text-sm font-medium text-gray-700 mb-2">HVAC Device Type</label>
+            <select id="hvacDevice"
+                class="w-full py-3 px-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-700 bg-white"
+                onchange="selectHVACDevice()">
+                <option value="">Select HVAC Device...</option>
+                <option value="residential-ac">Residential Air Conditioner</option>
+                <option value="commercial-ac">Commercial HVAC Unit</option>
+                <option value="heat-pump">Heat Pump System</option>
+                <option value="furnace-gas">Gas Furnace</option>
+                <option value="furnace-electric">Electric Furnace</option>
+                <option value="boiler">Boiler System</option>
+                <option value="split-system">Split System AC</option>
+                <option value="package-unit">Package Unit</option>
+                <option value="geothermal">Geothermal Heat Pump</option>
+                <option value="chiller">Chiller System</option>
+            </select>
+        </div>
+
+        <div class="relative">
+            <input id="searchInput" type="text" placeholder="Search additional HVAC tasks..."
+                class="w-full py-3 pl-4 pr-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-700 cursor-pointer"
+                onclick="toggleDropdown()" oninput="filterDropdownTasks()" readonly>
+
+            <div id="tasksDropdown"
+                class="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20 hidden">
+                <ul id="dropdownTaskList" class="py-2"></ul>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Selected Tasks</h3>
+                <div id="deviceInfo" class="text-sm text-gray-600 hidden">
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"></span>
+                </div>
+            </div>
+            <ul id="selectedTasksList" class="space-y-2">
+                <li class="text-gray-400 text-center py-4">No tasks selected</li>
+            </ul>
+            <div id="totalSummary" class="hidden mt-6 p-4 bg-gray-100 rounded-lg border">
+                <div class="flex justify-between items-center">
+                    <span class="text-lg font-semibold text-gray-800">Grand Total:</span>
+                    <span id="grandTotal" class="text-xl font-bold text-green-600">$0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const taskCategories = {
+            'preventive': {
+                name: 'Preventive Maintenance',
+                color: 'blue',
+                tasks: [
+                    { id: 1, name: 'Replace Air Filter', system: 'ventilation', priority: 'medium' },
+                    { id: 2, name: 'Clean Evaporator Coils', system: 'cooling', priority: 'medium' },
+                    { id: 7, name: 'Calibrate Thermostat', system: 'controls', priority: 'low' },
+                    { id: 9, name: 'Inspect Ductwork', system: 'ventilation', priority: 'medium' },
+                    { id: 10, name: 'Lubricate Moving Parts', system: 'heating', priority: 'low' }
+                ]
+            },
+            'corrective': {
+                name: 'Corrective Maintenance',
+                color: 'orange',
+                tasks: [
+                    { id: 3, name: 'Repair Thermostat', system: 'controls', priority: 'high' },
+                    { id: 6, name: 'Replace Blower Motor', system: 'ventilation', priority: 'high' },
+                    { id: 8, name: 'Repair Wiring', system: 'electrical', priority: 'medium' },
+                    { id: 11, name: 'Replace Capacitor', system: 'electrical', priority: 'high' },
+                    { id: 12, name: 'Fix Refrigerant Leak', system: 'cooling', priority: 'critical' }
+                ]
+            },
+            'installation': {
+                name: 'Installation',
+                color: 'green',
+                tasks: [
+                    { id: 4, name: 'Install Humidifier', system: 'ventilation', priority: 'low' },
+                    { id: 13, name: 'Install Programmable Thermostat', system: 'controls', priority: 'medium' },
+                    { id: 14, name: 'Install UV System', system: 'ventilation', priority: 'low' },
+                    { id: 15, name: 'Install Zone Valve', system: 'controls', priority: 'medium' }
+                ]
+            },
+            'emergency': {
+                name: 'Emergency',
+                color: 'red',
+                tasks: [
+                    { id: 5, name: 'Emergency: Gas Leak', system: 'heating', priority: 'critical' },
+                    { id: 16, name: 'No Heat - Emergency', system: 'heating', priority: 'critical' },
+                    { id: 17, name: 'No Cooling - Emergency', system: 'cooling', priority: 'critical' },
+                    { id: 18, name: 'Electrical Failure - Emergency', system: 'electrical', priority: 'critical' }
+                ]
+            }
+        };
+
+        const hvacDevices = {
+            'residential-ac': {
+                name: 'Residential Air Conditioner',
+                defaultTasks: [1, 2, 9] // Replace Air Filter, Clean Evaporator Coils, Inspect Ductwork
+            },
+            'commercial-ac': {
+                name: 'Commercial HVAC Unit',
+                defaultTasks: [1, 2, 7, 9, 10] // Filter, Coils, Thermostat, Ductwork, Lubricate
+            },
+            'heat-pump': {
+                name: 'Heat Pump System',
+                defaultTasks: [1, 2, 7, 10] // Filter, Coils, Thermostat, Lubricate
+            },
+            'furnace-gas': {
+                name: 'Gas Furnace',
+                defaultTasks: [1, 10, 5] // Filter, Lubricate, Gas Leak check
+            },
+            'furnace-electric': {
+                name: 'Electric Furnace',
+                defaultTasks: [1, 8, 11] // Filter, Wiring, Capacitor
+            },
+            'boiler': {
+                name: 'Boiler System',
+                defaultTasks: [10, 8, 5] // Lubricate, Wiring, Gas safety
+            },
+            'split-system': {
+                name: 'Split System AC',
+                defaultTasks: [1, 2, 12] // Filter, Coils, Refrigerant
+            },
+            'package-unit': {
+                name: 'Package Unit',
+                defaultTasks: [1, 2, 6, 9] // Filter, Coils, Blower Motor, Ductwork
+            },
+            'geothermal': {
+                name: 'Geothermal Heat Pump',
+                defaultTasks: [1, 7, 10] // Filter, Thermostat, Lubricate
+            },
+            'chiller': {
+                name: 'Chiller System',
+                defaultTasks: [2, 12, 8] // Coils, Refrigerant, Wiring
+            }
+        };
+
+        // Create flat array of all tasks for search
+        const tasks = Object.keys(taskCategories).flatMap(categoryKey =>
+            taskCategories[categoryKey].tasks.map(task => ({
+                ...task,
+                type: categoryKey,
+                categoryName: taskCategories[categoryKey].name
+            }))
+        );
+
+        let selectedTasks = [];
+        let collapsedCategories = {}; // Track collapsed state
+
+        function renderDropdownTasks(list) {
+            const ul = document.getElementById('dropdownTaskList');
+
+            if (list.length === 0) {
+                ul.innerHTML = '<li class="px-4 py-3 text-gray-400 text-center">No matching tasks</li>';
+                return;
+            }
+
+            const groupedTasks = {};
+            list.forEach(task => {
+                if (!groupedTasks[task.type]) {
+                    groupedTasks[task.type] = [];
+                }
+                groupedTasks[task.type].push(task);
+            });
+
+            ul.innerHTML = Object.keys(groupedTasks).map(categoryKey => {
+                const category = taskCategories[categoryKey];
+                const categoryTasks = groupedTasks[categoryKey];
+
+                return `
+                    <li class="border-b border-gray-100 last:border-b-0">
+                        <div class="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                            <div class="flex items-center">
+                                <div class="w-2 h-2 bg-${category.color}-500 rounded-full mr-2"></div>
+                                <span class="text-sm font-semibold text-gray-700">${category.name}</span>
+                            </div>
+                        </div>
+                        ${categoryTasks.map(t => {
+                    const isSelected = selectedTasks.some(st => st.id === t.id);
+                    return `
+                                <div class="px-6 py-3 hover:bg-gray-100 cursor-pointer ${isSelected ? 'bg-green-50' : ''}" onclick="selectTask(${t.id})">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex-1">
+                                            <div class="font-medium text-gray-800">${t.name}</div>
+                                            <div class="text-xs text-gray-500 mt-1">${capitalize(t.system)} | ${capitalize(t.priority)}</div>
+                                        </div>
+                                        ${isSelected ? `
+                                            <div class="ml-3 text-green-600">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                }).join('')}
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function renderSelectedTasks() {
+            const ul = document.getElementById('selectedTasksList');
+
+            if (selectedTasks.length === 0) {
+                ul.innerHTML = '<li class="text-gray-400 text-center py-4">No tasks selected</li>';
+                return;
+            }
+
+            const groupedTasks = {};
+            selectedTasks.forEach(task => {
+                if (!groupedTasks[task.type]) {
+                    groupedTasks[task.type] = [];
+                }
+                groupedTasks[task.type].push(task);
+            });
+
+            ul.innerHTML = Object.keys(groupedTasks).map(categoryKey => {
+                const category = taskCategories[categoryKey];
+                const categoryTasks = groupedTasks[categoryKey];
+
+                return `
+                    <li class="mb-6">
+                        <div class="flex items-center mb-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onclick="toggleCategory('${categoryKey}')">
+                            <div class="w-3 h-3 bg-${category.color}-500 rounded-full mr-2"></div>
+                            <h4 class="font-semibold text-gray-800 text-lg">${category.name}</h4>
+                            <span class="ml-2 text-sm text-gray-500">(${categoryTasks.length} ${categoryTasks.length === 1 ? 'task' : 'tasks'})</span>
+                            <svg id="chevron-${categoryKey}" class="w-5 h-5 ml-auto text-gray-400 transition-transform duration-200 ${collapsedCategories[categoryKey] ? 'rotate-[-90deg]' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        <div id="category-${categoryKey}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-all duration-300 ${collapsedCategories[categoryKey] ? 'hidden' : ''}">
+                            ${categoryTasks.map(t => `
+                                <div class="p-4 bg-${category.color}-50 rounded-lg border border-${category.color}-200 relative">
+                                    <button onclick="removeTask(${t.id})" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <div class="mb-3 pr-6">
+                                        <div class="font-medium text-gray-800 text-sm leading-tight">${t.name}</div>
+                                        <div class="text-xs text-gray-600 mt-1">${capitalize(t.system)} | ${capitalize(t.priority)}</div>
+                                    </div>
+                                    
+                                    <div class="space-y-2 mb-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Parts ($)</label>
+                                            <input type="number" step="0.01" placeholder="0.00" 
+                                                   class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-${category.color}-400 focus:outline-none"
+                                                   value="${t.partCost || ''}" 
+                                                   onchange="updateTaskCost(${t.id}, 'partCost', this.value)">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Hours</label>
+                                            <input type="number" step="0.5" placeholder="0" 
+                                                   class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-${category.color}-400 focus:outline-none"
+                                                   value="${t.laborHours || ''}" 
+                                                   onchange="updateTaskCost(${t.id}, 'laborHours', this.value)">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Fee ($)</label>
+                                            <input type="number" step="0.01" placeholder="0.00" 
+                                                   class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-${category.color}-400 focus:outline-none"
+                                                   value="${t.flatFee || ''}" 
+                                                   onchange="updateTaskCost(${t.id}, 'flatFee', this.value)">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="pt-2 border-t border-${category.color}-200 text-center">
+                                        <span class="text-xs text-gray-600">Total: </span>
+                                        <span class="font-semibold text-green-600 text-sm">$${calculateTotal(t).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </li>
+                `;
+            }).join('');
+
+            updateGrandTotal();
+        }
+
+        function updateGrandTotal() {
+            const totalSummary = document.getElementById('totalSummary');
+            const grandTotalElement = document.getElementById('grandTotal');
+
+            if (selectedTasks.length === 0) {
+                totalSummary.classList.add('hidden');
+                return;
+            }
+
+            const grandTotal = selectedTasks.reduce((sum, task) => sum + calculateTotal(task), 0);
+            grandTotalElement.textContent = `$${grandTotal.toFixed(2)}`;
+            totalSummary.classList.remove('hidden');
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('tasksDropdown');
+            const input = document.getElementById('searchInput');
+
+            dropdown.classList.toggle('hidden');
+
+            if (!dropdown.classList.contains('hidden')) {
+                input.removeAttribute('readonly');
+                input.focus();
+                renderDropdownTasks(tasks);
+            } else {
+                input.setAttribute('readonly', true);
+                input.value = '';
+            }
+        }
+
+        function filterDropdownTasks() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = tasks.filter(t =>
+                t.name.toLowerCase().includes(query)
+            );
+            renderDropdownTasks(filtered);
+        }
+
+        function selectTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task && !selectedTasks.some(t => t.id === taskId)) {
+                selectedTasks.push(task);
+                renderSelectedTasks();
+
+                const query = document.getElementById('searchInput').value.toLowerCase();
+                const filtered = tasks.filter(t =>
+                    t.name.toLowerCase().includes(query)
+                );
+                renderDropdownTasks(filtered);
+            }
+        }
+
+        function removeTask(taskId) {
+            selectedTasks = selectedTasks.filter(t => t.id !== taskId);
+            renderSelectedTasks();
+
+            const dropdown = document.getElementById('tasksDropdown');
+            if (!dropdown.classList.contains('hidden')) {
+                const query = document.getElementById('searchInput').value.toLowerCase();
+                const filtered = tasks.filter(t =>
+                    t.name.toLowerCase().includes(query)
+                );
+                renderDropdownTasks(filtered);
+            }
+        }
+
+        function updateTaskCost(taskId, field, value) {
+            const task = selectedTasks.find(t => t.id === taskId);
+            if (task) {
+                task[field] = parseFloat(value) || 0;
+                renderSelectedTasks();
+            }
+        }
+
+        function calculateTotal(task) {
+            const partCost = parseFloat(task.partCost) || 0;
+            const laborHours = parseFloat(task.laborHours) || 0;
+            const laborRate = 75; // $75 per hour (configurable)
+            const flatFee = parseFloat(task.flatFee) || 0;
+
+            return partCost + (laborHours * laborRate) + flatFee;
+        }
+
+        function toggleCategory(categoryKey) {
+            const categoryDiv = document.getElementById(`category-${categoryKey}`);
+            const chevron = document.getElementById(`chevron-${categoryKey}`);
+
+            // Toggle the collapsed state
+            collapsedCategories[categoryKey] = !collapsedCategories[categoryKey];
+
+            if (collapsedCategories[categoryKey]) {
+                categoryDiv.classList.add('hidden');
+                chevron.style.transform = 'rotate(-90deg)';
+            } else {
+                categoryDiv.classList.remove('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function selectHVACDevice() {
+            const deviceSelect = document.getElementById('hvacDevice');
+            const deviceInfo = document.getElementById('deviceInfo');
+            const selectedDevice = deviceSelect.value;
+
+            if (!selectedDevice) {
+                // Clear all selected tasks if no device is selected
+                selectedTasks = [];
+                deviceInfo.classList.add('hidden');
+                renderSelectedTasks();
+                return;
+            }
+
+            const device = hvacDevices[selectedDevice];
+            if (device) {
+                // Show device info
+                deviceInfo.classList.remove('hidden');
+                deviceInfo.querySelector('span').textContent = device.name;
+
+                // Clear current selection
+                selectedTasks = [];
+
+                // Add default tasks for this device
+                device.defaultTasks.forEach(taskId => {
+                    const task = tasks.find(t => t.id === taskId);
+                    if (task && !selectedTasks.some(t => t.id === taskId)) {
+                        selectedTasks.push(task);
+                    }
+                });
+
+                // Re-render selected tasks
+                renderSelectedTasks();
+
+                // Update dropdown if it's open
+                const dropdown = document.getElementById('tasksDropdown');
+                if (!dropdown.classList.contains('hidden')) {
+                    const query = document.getElementById('searchInput').value.toLowerCase();
+                    const filtered = tasks.filter(t =>
+                        t.name.toLowerCase().includes(query)
+                    );
+                    renderDropdownTasks(filtered);
+                }
+            }
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('tasksDropdown');
+            const input = document.getElementById('searchInput');
+
+            if (!dropdown.contains(e.target) && !input.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                input.value = '';
+                input.setAttribute('readonly', true);
+            }
+        });
+
+        // Initialize
+        renderSelectedTasks();
+    </script>
+</body>
+
+</html>
