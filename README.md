@@ -6,8 +6,10 @@ A modern, responsive web application for HVAC task selection and cost estimation
 
 - **Device Selection**: Choose from various HVAC device types with pre-configured default tasks
 - **Smart Search**: Search tasks with minimum 3-character requirement for performance
+- **Limited Dropdown Results**: Shows only 10 results in dropdown with "View more results" option
 - **Dropdown Selection**: Quick task selection from filtered search results
 - **Modal View**: Browse all tasks in a paginated modal interface
+- **Enhanced Search Flow**: "View more results" button opens modal with search pre-applied
 - **Task Management**: Add, remove, and manage selected tasks with cost calculations
 - **Cost Estimation**: Calculate costs including parts, labor hours, and flat fees
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
@@ -72,6 +74,8 @@ search-bar-hvac/
 8. **Production Ready**: Removed debugging code and console logs
 9. **Asset Organization**: All CSS and JS assets properly organized in `/src/` directory
 10. **Clean Architecture**: No inline JavaScript or CSS, all code properly externalized
+11. **Enhanced Search UX**: Limited dropdown results (10 max) with "View more results" option
+12. **Seamless Modal Integration**: "View more results" opens modal with search pre-applied
 
 ## Configuration
 
@@ -92,16 +96,21 @@ const CONFIG = {
     MODAL_TASKS_PER_PAGE: 10, // Tasks per page in modal
     // ...
 };
+
+// In renderDropdownTasks function:
+const maxDropdownResults = 10; // Maximum results shown in dropdown
 ```
 
 ## Usage
 
 1. **Select Device**: Choose an HVAC device type from the dropdown
 2. **Search Tasks**: Use the search input to find additional tasks (minimum 3 characters)
-3. **Browse All Tasks**: Click "All Tasks" button to view all available tasks in a modal
-4. **Manage Selection**: Add/remove tasks by clicking on them
-5. **Calculate Costs**: Enter parts cost, labor hours, and fees for each task
-6. **View Totals**: See individual task totals and grand total
+3. **Quick Selection**: Select from up to 10 results shown in the dropdown
+4. **View More Results**: Click "View more results (X)" to see all matching tasks in a modal
+5. **Browse All Tasks**: Click the "All Tasks" button to view all available tasks in a modal
+6. **Manage Selection**: Add/remove tasks by clicking on them
+7. **Calculate Costs**: Enter parts cost, labor hours, and fees for each task
+8. **View Totals**: See individual task totals and grand total
 
 ## Browser Support
 

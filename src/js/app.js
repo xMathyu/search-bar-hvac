@@ -96,6 +96,7 @@ function handleDynamicClicks(e) {
   const action = target.dataset.action;
   const taskId = parseInt(target.dataset.taskId);
   const categoryKey = target.dataset.categoryKey;
+  const searchQuery = target.dataset.searchQuery;
 
   switch (action) {
     case "select-task-modal":
@@ -109,6 +110,9 @@ function handleDynamicClicks(e) {
       break;
     case "toggle-category":
       toggleCategory(categoryKey);
+      break;
+    case "view-more-results":
+      openModalWithSearch(searchQuery);
       break;
   }
 }
@@ -138,6 +142,42 @@ function openTasksModal() {
   setTimeout(() => {
     elements.tasksModal.style.display = "flex";
     elements.tasksModal.classList.remove("hidden");
+  }, 10);
+}
+
+function openModalWithSearch(searchQuery) {
+  // Open modal first
+  elements.tasksModal.classList.remove("hidden");
+  elements.tasksModal.style.display = "flex";
+
+  // Set the search query in the modal search input immediately
+  elements.modalSearchInput.value = searchQuery;
+
+  // Apply the search filter
+  modalFilteredTasks = tasks.filter(
+    (t) =>
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.system.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.priority.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  modalCurrentPage = 1;
+  renderModalTasks();
+  document.body.style.overflow = "hidden"; // Prevent background scroll
+
+  // Close the dropdown
+  hideDropdown();
+
+  // Force display and ensure search input value is set after a delay
+  setTimeout(() => {
+    elements.tasksModal.style.display = "flex";
+    elements.tasksModal.classList.remove("hidden");
+    // Double-check that the search value is set
+    elements.modalSearchInput.value = searchQuery;
+    // Focus on the search input to show the user the search term
+    elements.modalSearchInput.focus();
+    elements.modalSearchInput.blur(); // Remove focus but keep the value visible
   }, 10);
 }
 
@@ -333,6 +373,12 @@ function toggleDropdown() {
   }
 }
 
+function hideDropdown() {
+  elements.tasksDropdown.classList.add("hidden");
+  elements.searchInput.setAttribute("readonly", true);
+  elements.searchInput.value = "";
+}
+
 function filterDropdownTasks() {
   const query = elements.searchInput.value.toLowerCase();
 
@@ -344,25 +390,29 @@ function filterDropdownTasks() {
   }
 
   const filtered = tasks.filter((t) => t.name.toLowerCase().includes(query));
-  renderDropdownTasks(filtered);
+  renderDropdownTasks(filtered, query);
 }
 
-function renderDropdownTasks(list) {
+function renderDropdownTasks(list, searchQuery = "") {
   if (list.length === 0) {
     elements.dropdownTaskList.innerHTML =
       '<li class="px-4 py-3 text-gray-400 text-center">No matching tasks</li>';
     return;
   }
 
+  const maxDropdownResults = 10;
+  const displayTasks = list.slice(0, maxDropdownResults);
+  const hasMoreResults = list.length > maxDropdownResults;
+
   const groupedTasks = {};
-  list.forEach((task) => {
+  displayTasks.forEach((task) => {
     if (!groupedTasks[task.type]) {
       groupedTasks[task.type] = [];
     }
     groupedTasks[task.type].push(task);
   });
 
-  elements.dropdownTaskList.innerHTML = Object.keys(groupedTasks)
+  let dropdownContent = Object.keys(groupedTasks)
     .map((categoryKey) => {
       const category = taskCategories[categoryKey];
       const categoryTasks = groupedTasks[categoryKey];
@@ -419,6 +469,30 @@ function renderDropdownTasks(list) {
         `;
     })
     .join("");
+
+  // Add "View more results" button if there are more results
+  if (hasMoreResults) {
+    const remainingCount = list.length - maxDropdownResults;
+    // Escape HTML characters in search query to prevent issues
+    const escapedSearchQuery = searchQuery
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+    dropdownContent += `
+      <li class="border-t border-gray-200">
+        <div class="px-4 py-3 bg-blue-50 hover:bg-blue-100 cursor-pointer text-center" data-action="view-more-results" data-search-query="${escapedSearchQuery}">
+          <div class="flex items-center justify-center gap-2 text-blue-600 font-medium">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+            View more results (${remainingCount})
+          </div>
+        </div>
+      </li>
+    `;
+  }
+
+  elements.dropdownTaskList.innerHTML = dropdownContent;
 }
 
 // Task selection and management
