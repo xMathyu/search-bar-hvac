@@ -43,7 +43,11 @@ search-bar-hvac/
 - Print styles for documentation
 
 ### `/src/js/data.js`
-- Task categories and their associated tasks
+- Task categories and their associated tasks (138 total tasks)
+  - Preventive Maintenance: 35 tasks
+  - Corrective Maintenance: 35 tasks  
+  - Installation: 34 tasks
+  - Emergency: 34 tasks
 - HVAC device configurations with default tasks
 - Configuration constants (labor rates, pagination settings)
 - Data structure definitions
